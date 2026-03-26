@@ -1,5 +1,5 @@
 import { ManagementClient } from "auth0";
-import type { Organization } from "@/types/organization";
+import type { Organization, OrgMember } from "@/types/organization";
 
 const PAGE_SIZE = 50;
 
@@ -30,5 +30,26 @@ export async function fetchOrganizations(): Promise<Organization[]> {
     id: org.id ?? "",
     name: org.name ?? "",
     display_name: org.display_name ?? org.name ?? "",
+  }));
+}
+
+export async function fetchOrganization(orgId: string): Promise<Organization> {
+  const client = createManagementClient();
+  const org = await client.organizations.get(orgId);
+  return {
+    id: org.id ?? "",
+    name: org.name ?? "",
+    display_name: org.display_name ?? org.name ?? "",
+  };
+}
+
+export async function fetchOrganizationMembers(orgId: string): Promise<OrgMember[]> {
+  const client = createManagementClient();
+  const page = await client.organizations.members.list(orgId, { take: PAGE_SIZE });
+  return page.data.map((m) => ({
+    user_id: m.user_id ?? "",
+    name: m.name ?? "",
+    email: m.email ?? "",
+    picture: m.picture ?? "",
   }));
 }
