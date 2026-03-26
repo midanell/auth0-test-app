@@ -1,5 +1,9 @@
 import { ManagementClient } from "auth0";
-import type { Organization, OrgMember } from "@/types/organization";
+import type {
+  Organization,
+  OrgMember,
+  OrgConnection,
+} from "@/types/organization";
 
 const PAGE_SIZE = 50;
 
@@ -43,13 +47,67 @@ export async function fetchOrganization(orgId: string): Promise<Organization> {
   };
 }
 
-export async function fetchOrganizationMembers(orgId: string): Promise<OrgMember[]> {
+export async function fetchOrganizationMembers(
+  orgId: string,
+): Promise<OrgMember[]> {
   const client = createManagementClient();
-  const page = await client.organizations.members.list(orgId, { take: PAGE_SIZE });
+  const page = await client.organizations.members.list(orgId, {
+    take: PAGE_SIZE,
+  });
   return page.data.map((m) => ({
     user_id: m.user_id ?? "",
     name: m.name ?? "",
     email: m.email ?? "",
     picture: m.picture ?? "",
   }));
+}
+
+export async function fetchOrgConnections(
+  orgId: string,
+): Promise<OrgConnection[]> {
+  const client = createManagementClient();
+  const page = await client.organizations.enabledConnections.list(orgId);
+  const dbConnections = page.data.filter(
+    (c) => c.connection?.strategy === "auth0",
+  );
+  return Promise.all(
+    dbConnections.map(async (c) => {
+      const connectionId = c.connection_id ?? "";
+      let requires_username = false;
+      if (connectionId) {
+        const details = await client.connections.get(connectionId);
+        const options = details.options as
+          | Record<string, Record<string, unknown>>
+          | undefined;
+        requires_username = Boolean(options?.attributes?.username);
+      }
+      return {
+        connection_id: connectionId,
+        name: c.connection?.name ?? "",
+        requires_username,
+      };
+    }),
+  );
+}
+
+export async function createOrgMember(params: {
+  orgId: string;
+  connectionName: string;
+  name: string;
+  email?: string;
+  username?: string;
+  password: string;
+}): Promise<void> {
+  const client = createManagementClient();
+  const user = await client.users.create({
+    connection: params.connectionName,
+    name: params.name,
+    ...(params.username
+      ? { username: params.username }
+      : { email: params.email, email_verified: false }),
+    password: params.password,
+  });
+  await client.organizations.members.create(params.orgId, {
+    members: [user.user_id ?? ""],
+  });
 }

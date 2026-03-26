@@ -10,3 +10,9 @@ export interface OrgMember {
   email: string;
   picture: string;
 }
+
+export interface OrgConnection {
+  connection_id: string;
+  name: string;
+  requires_username: boolean;
+}

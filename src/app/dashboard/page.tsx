@@ -1,7 +1,13 @@
 import { redirect } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
-import { fetchOrganization, fetchOrganizationMembers } from "@/lib/management-api";
+import {
+  fetchOrganization,
+  fetchOrganizationMembers,
+  fetchOrgConnections,
+  createOrgMember,
+} from "@/lib/management-api";
 import type { OrgMember, Organization } from "@/types/organization";
+import AddMemberModal from "./AddMemberModal";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +19,38 @@ export default async function DashboardPage() {
   }
 
   const orgId = session.user.org_id as string | undefined;
-  const [org, members]: [Organization | null, OrgMember[]] = orgId
-    ? await Promise.all([fetchOrganization(orgId), fetchOrganizationMembers(orgId)])
-    : [null, []];
+  const [org, members, connections] = orgId
+    ? await Promise.all([
+        fetchOrganization(orgId),
+        fetchOrganizationMembers(orgId),
+        fetchOrgConnections(orgId),
+      ])
+    : ([null, [], []] as [Organization | null, OrgMember[], never[]]);
+
+  async function addMember(formData: FormData) {
+    "use server";
+    if (!orgId) return { error: "No organisation in session." };
+    const name = formData.get("name") as string;
+    const password = formData.get("password") as string;
+    const connectionName = formData.get("connectionName") as string;
+    const email = (formData.get("email") as string) || undefined;
+    const username = (formData.get("username") as string) || undefined;
+    try {
+      await createOrgMember({
+        orgId,
+        connectionName,
+        name,
+        email,
+        username,
+        password,
+      });
+      return {};
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to add member.";
+      return { error: message };
+    }
+  }
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -37,15 +72,24 @@ export default async function DashboardPage() {
           </a>
         </div>
 
+        {orgId && connections.length === 0 && (
+          <p className="text-center text-sm text-red-500 mb-4">
+            No database connection is enabled for this organisation.
+          </p>
+        )}
+
         {orgId && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-100">
+            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                 Organization Members
               </h2>
+              <AddMemberModal connections={connections} addMember={addMember} />
             </div>
             {members.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-gray-500">No members found.</p>
+              <p className="px-4 py-4 text-sm text-gray-500">
+                No members found.
+              </p>
             ) : (
               <ul>
                 {members.map((member) => (
@@ -68,8 +112,12 @@ export default async function DashboardPage() {
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{member.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{member.email}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {member.name}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {member.email}
+                      </p>
                     </div>
                   </li>
                 ))}
