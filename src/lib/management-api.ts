@@ -90,6 +90,12 @@ export async function fetchOrgConnections(
   );
 }
 
+export async function deleteOrgMember(orgId: string, userId: string): Promise<void> {
+  const client = createManagementClient();
+  await client.organizations.members.delete(orgId, { members: [userId] });
+  await client.users.delete(userId);
+}
+
 export async function createOrgMember(params: {
   orgId: string;
   connectionName: string;

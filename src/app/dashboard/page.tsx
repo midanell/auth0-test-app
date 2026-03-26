@@ -5,9 +5,11 @@ import {
   fetchOrganizationMembers,
   fetchOrgConnections,
   createOrgMember,
+  deleteOrgMember,
 } from "@/lib/management-api";
 import type { OrgMember, Organization } from "@/types/organization";
 import AddMemberModal from "./AddMemberModal";
+import DeleteMemberButton from "./DeleteMemberButton";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,19 @@ export default async function DashboardPage() {
         fetchOrgConnections(orgId),
       ])
     : ([null, [], []] as [Organization | null, OrgMember[], never[]]);
+
+  async function deleteMember(formData: FormData) {
+    "use server";
+    if (!orgId) return { error: "No organisation in session." };
+    const userId = formData.get("userId") as string;
+    try {
+      await deleteOrgMember(orgId, userId);
+      return {};
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to delete member.";
+      return { error: message };
+    }
+  }
 
   async function addMember(formData: FormData) {
     "use server";
@@ -119,6 +134,7 @@ export default async function DashboardPage() {
                         {member.email}
                       </p>
                     </div>
+                    <DeleteMemberButton member={member} deleteMember={deleteMember} />
                   </li>
                 ))}
               </ul>
