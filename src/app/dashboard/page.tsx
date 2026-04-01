@@ -8,6 +8,7 @@ import {
   createOrgMember,
   deleteOrgMember,
   setOrgMemberRole,
+  userHasAdminRole,
 } from "@/lib/management-api";
 import type {
   AppRole,
@@ -29,12 +30,14 @@ export default async function DashboardPage() {
   }
 
   const orgId = session.user.org_id as string | undefined;
-
-  const rawRoles = session.user["https://ks.solutions.io/roles"] as
-    | string[]
-    | undefined;
-  console.log("dsaf", rawRoles);
+  const roleNamespace = process.env.AUTH0_AUDIENCE + "/roles";
+  let rawRoles = session.user[roleNamespace] as string[] | undefined;
+  console.log("roles", rawRoles);
   console.log("user", session.user);
+  if (!rawRoles) {
+    const isAdmin = await userHasAdminRole(session.user.sub);
+    rawRoles = isAdmin ? ["Admin"] : undefined;
+  }
   const currentUserRole = rawRoles?.[0] as AppRole | undefined;
   const canManageMembers =
     currentUserRole === "Admin" || currentUserRole === "Manager";
@@ -139,6 +142,8 @@ export default async function DashboardPage() {
             No database connection is enabled for this organisation.
           </p>
         )}
+
+        <pre className="text-black">{JSON.stringify(session, null, 2)}</pre>
 
         {canManageMembers && orgId && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

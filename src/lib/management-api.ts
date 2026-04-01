@@ -108,7 +108,10 @@ export async function fetchOrgConnections(
   );
 }
 
-export async function deleteOrgMember(orgId: string, userId: string): Promise<void> {
+export async function deleteOrgMember(
+  orgId: string,
+  userId: string,
+): Promise<void> {
   const client = createManagementClient();
   await client.organizations.members.delete(orgId, { members: [userId] });
   await client.users.delete(userId);
@@ -157,4 +160,11 @@ export async function setOrgMemberRole(
   await client.organizations.members.roles.assign(orgId, userId, {
     roles: [newRoleId],
   });
+}
+
+export async function userHasAdminRole(userId: string): Promise<boolean> {
+  const client = createManagementClient();
+  const roles = await client.users.roles.list(userId);
+  console.log("roles m2m", roles);
+  return roles.data.some((role) => role.name === "Admin");
 }
