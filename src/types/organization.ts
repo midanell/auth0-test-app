@@ -9,6 +9,14 @@ export interface OrgMember {
   name: string;
   email: string;
   picture: string;
+  role?: string;
+}
+
+export type AppRole = "Admin" | "Manager" | "User";
+
+export interface TenantRole {
+  id: string;
+  name: string;
 }
 
 export interface OrgConnection {

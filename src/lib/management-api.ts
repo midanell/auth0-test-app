@@ -3,6 +3,7 @@ import type {
   Organization,
   OrgMember,
   OrgConnection,
+  TenantRole,
 } from "@/types/organization";
 
 const PAGE_SIZE = 50;
@@ -54,12 +55,29 @@ export async function fetchOrganizationMembers(
   const page = await client.organizations.members.list(orgId, {
     take: PAGE_SIZE,
   });
-  return page.data.map((m) => ({
+  const base = page.data.map((m) => ({
     user_id: m.user_id ?? "",
     name: m.name ?? "",
     email: m.email ?? "",
     picture: m.picture ?? "",
   }));
+  return Promise.all(
+    base.map(async (member) => {
+      const rolesPage = await client.organizations.members.roles.list(
+        orgId,
+        member.user_id,
+      );
+      return { ...member, role: rolesPage.data[0]?.name ?? undefined };
+    }),
+  );
+}
+
+export async function fetchTenantRoles(): Promise<TenantRole[]> {
+  const client = createManagementClient();
+  const page = await client.roles.list();
+  return page.data
+    .filter((r) => r.id && r.name)
+    .map((r) => ({ id: r.id!, name: r.name! }));
 }
 
 export async function fetchOrgConnections(
@@ -103,6 +121,7 @@ export async function createOrgMember(params: {
   email?: string;
   username?: string;
   password: string;
+  roleId: string;
 }): Promise<void> {
   const client = createManagementClient();
   const user = await client.users.create({
@@ -115,5 +134,27 @@ export async function createOrgMember(params: {
   });
   await client.organizations.members.create(params.orgId, {
     members: [user.user_id ?? ""],
+  });
+  await client.organizations.members.roles.assign(
+    params.orgId,
+    user.user_id ?? "",
+    { roles: [params.roleId] },
+  );
+}
+
+export async function setOrgMemberRole(
+  orgId: string,
+  userId: string,
+  newRoleId: string,
+  prevRoleId?: string,
+): Promise<void> {
+  const client = createManagementClient();
+  if (prevRoleId) {
+    await client.organizations.members.roles.delete(orgId, userId, {
+      roles: [prevRoleId],
+    });
+  }
+  await client.organizations.members.roles.assign(orgId, userId, {
+    roles: [newRoleId],
   });
 }

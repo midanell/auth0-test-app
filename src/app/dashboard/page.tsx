@@ -4,12 +4,20 @@ import {
   fetchOrganization,
   fetchOrganizationMembers,
   fetchOrgConnections,
+  fetchTenantRoles,
   createOrgMember,
   deleteOrgMember,
+  setOrgMemberRole,
 } from "@/lib/management-api";
-import type { OrgMember, Organization } from "@/types/organization";
+import type {
+  AppRole,
+  OrgMember,
+  Organization,
+  TenantRole,
+} from "@/types/organization";
 import AddMemberModal from "./AddMemberModal";
 import DeleteMemberButton from "./DeleteMemberButton";
+import RoleSelector from "./RoleSelector";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +29,33 @@ export default async function DashboardPage() {
   }
 
   const orgId = session.user.org_id as string | undefined;
-  const [org, members, connections] = orgId
+
+  const rawRoles = session.user["https://ks.solutions.io/roles"] as
+    | string[]
+    | undefined;
+  console.log("dsaf", rawRoles);
+  console.log("user", session.user);
+  const currentUserRole = rawRoles?.[0] as AppRole | undefined;
+  const canManageMembers =
+    currentUserRole === "Admin" || currentUserRole === "Manager";
+
+  const [org, members, connections, tenantRoles] = orgId
     ? await Promise.all([
         fetchOrganization(orgId),
-        fetchOrganizationMembers(orgId),
+        canManageMembers
+          ? fetchOrganizationMembers(orgId)
+          : Promise.resolve([] as OrgMember[]),
         fetchOrgConnections(orgId),
+        canManageMembers
+          ? fetchTenantRoles()
+          : Promise.resolve([] as TenantRole[]),
       ])
-    : ([null, [], []] as [Organization | null, OrgMember[], never[]]);
+    : ([null, [], [], []] as [
+        Organization | null,
+        OrgMember[],
+        never[],
+        TenantRole[],
+      ]);
 
   async function deleteMember(formData: FormData) {
     "use server";
@@ -37,7 +65,8 @@ export default async function DashboardPage() {
       await deleteOrgMember(orgId, userId);
       return {};
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to delete member.";
+      const message =
+        err instanceof Error ? err.message : "Failed to delete member.";
       return { error: message };
     }
   }
@@ -50,6 +79,7 @@ export default async function DashboardPage() {
     const connectionName = formData.get("connectionName") as string;
     const email = (formData.get("email") as string) || undefined;
     const username = (formData.get("username") as string) || undefined;
+    const roleId = formData.get("roleId") as string;
     try {
       await createOrgMember({
         orgId,
@@ -58,11 +88,28 @@ export default async function DashboardPage() {
         email,
         username,
         password,
+        roleId,
       });
       return {};
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to add member.";
+      return { error: message };
+    }
+  }
+
+  async function changeRole(formData: FormData) {
+    "use server";
+    if (!orgId) return { error: "No organisation in session." };
+    const userId = formData.get("userId") as string;
+    const roleId = formData.get("roleId") as string;
+    const prevRoleId = (formData.get("prevRoleId") as string) || undefined;
+    try {
+      await setOrgMemberRole(orgId, userId, roleId, prevRoleId);
+      return {};
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to change role.";
       return { error: message };
     }
   }
@@ -87,19 +134,23 @@ export default async function DashboardPage() {
           </a>
         </div>
 
-        {orgId && connections.length === 0 && (
+        {canManageMembers && orgId && connections.length === 0 && (
           <p className="text-center text-sm text-red-500 mb-4">
             No database connection is enabled for this organisation.
           </p>
         )}
 
-        {orgId && (
+        {canManageMembers && orgId && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                 Organization Members
               </h2>
-              <AddMemberModal connections={connections} addMember={addMember} />
+              <AddMemberModal
+                connections={connections}
+                tenantRoles={tenantRoles}
+                addMember={addMember}
+              />
             </div>
             {members.length === 0 ? (
               <p className="px-4 py-4 text-sm text-gray-500">
@@ -126,7 +177,7 @@ export default async function DashboardPage() {
                         {member.name ? member.name[0].toUpperCase() : "?"}
                       </div>
                     )}
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {member.name}
                       </p>
@@ -134,7 +185,15 @@ export default async function DashboardPage() {
                         {member.email}
                       </p>
                     </div>
-                    <DeleteMemberButton member={member} deleteMember={deleteMember} />
+                    <RoleSelector
+                      member={member}
+                      tenantRoles={tenantRoles}
+                      changeRole={changeRole}
+                    />
+                    <DeleteMemberButton
+                      member={member}
+                      deleteMember={deleteMember}
+                    />
                   </li>
                 ))}
               </ul>

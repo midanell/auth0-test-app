@@ -34,7 +34,7 @@ export default function DeleteMemberButton({ member, deleteMember }: Props) {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="ml-auto flex items-center justify-center w-6 h-6 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors text-base leading-none shrink-0"
+        className="flex items-center justify-center w-6 h-6 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors text-base leading-none shrink-0"
         aria-label={`Delete ${member.name}`}
       >
         ×

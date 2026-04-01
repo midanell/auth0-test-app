@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { OrgConnection } from "@/types/organization";
+import type { OrgConnection, TenantRole } from "@/types/organization";
 
 interface Props {
   connections: OrgConnection[];
+  tenantRoles: TenantRole[];
   addMember: (formData: FormData) => Promise<{ error?: string }>;
 }
 
-export default function AddMemberModal({ connections, addMember }: Props) {
+export default function AddMemberModal({ connections, tenantRoles, addMember }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -18,7 +19,7 @@ export default function AddMemberModal({ connections, addMember }: Props) {
     connections[0]?.name ?? ""
   );
 
-  if (connections.length === 0) {
+  if (connections.length === 0 || tenantRoles.length === 0) {
     return null;
   }
 
@@ -143,6 +144,17 @@ export default function AddMemberModal({ connections, addMember }: Props) {
                   autoComplete="new-password"
                   className={inputClass}
                 />
+              </label>
+
+              <label className="flex flex-col gap-1 text-sm text-gray-700">
+                Role
+                <select name="roleId" required className={inputClass}>
+                  {tenantRoles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <div className="flex gap-2 mt-1 justify-end">
