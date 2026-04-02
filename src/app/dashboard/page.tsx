@@ -33,6 +33,7 @@ export default async function DashboardPage() {
   const orgId = session.user.org_id as string | undefined;
   const roleNamespace = process.env.AUTH0_AUDIENCE + "/roles";
 
+  // import decode idToken to get organisation roles
   const claims = session?.tokenSet?.idToken
     ? (jwtDecode(session.tokenSet.idToken) as Record<string, unknown>)
     : {};
