@@ -4,6 +4,7 @@ import type {
   OrgMember,
   OrgConnection,
   TenantRole,
+  AppRole,
 } from "@/types/organization";
 
 const PAGE_SIZE = 50;
@@ -72,11 +73,19 @@ export async function fetchOrganizationMembers(
   );
 }
 
-export async function fetchTenantRoles(): Promise<TenantRole[]> {
+export async function fetchTenantRoles(
+  userRole: AppRole,
+): Promise<TenantRole[]> {
+  if (userRole === "User") return [];
+
   const client = createManagementClient();
   const page = await client.roles.list();
   return page.data
-    .filter((r) => r.id && r.name)
+    .filter((r) => {
+      if (!(r.id && r.name)) return false;
+      if (userRole === "Manager" && r.name !== "Admin") return false;
+      return true;
+    })
     .map((r) => ({ id: r.id!, name: r.name! }));
 }
 
@@ -160,11 +169,4 @@ export async function setOrgMemberRole(
   await client.organizations.members.roles.assign(orgId, userId, {
     roles: [newRoleId],
   });
-}
-
-export async function userHasAdminRole(userId: string): Promise<boolean> {
-  const client = createManagementClient();
-  const roles = await client.users.roles.list(userId);
-  console.log("roles m2m", roles);
-  return roles.data.some((role) => role.name === "Admin");
 }
