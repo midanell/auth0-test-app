@@ -29,9 +29,10 @@ function createManagementClient(): ManagementClient {
   });
 }
 
+const managementClient: ManagementClient = createManagementClient();
+
 export async function fetchOrganizations(): Promise<Organization[]> {
-  const client = createManagementClient();
-  const page = await client.organizations.list({ take: PAGE_SIZE });
+  const page = await managementClient.organizations.list({ take: PAGE_SIZE });
   return page.data.map((org) => ({
     id: org.id ?? "",
     name: org.name ?? "",
@@ -40,8 +41,7 @@ export async function fetchOrganizations(): Promise<Organization[]> {
 }
 
 export async function fetchOrganization(orgId: string): Promise<Organization> {
-  const client = createManagementClient();
-  const org = await client.organizations.get(orgId);
+  const org = await managementClient.organizations.get(orgId);
   return {
     id: org.id ?? "",
     name: org.name ?? "",
@@ -53,8 +53,7 @@ export async function fetchOrganizationMembers(
   orgId: string,
   userRole: AppRole,
 ): Promise<OrgMember[]> {
-  const client = createManagementClient();
-  const page = await client.organizations.members.list(orgId, {
+  const page = await managementClient.organizations.members.list(orgId, {
     take: PAGE_SIZE,
   });
   const base = page.data.map((m) => ({
@@ -65,7 +64,7 @@ export async function fetchOrganizationMembers(
   }));
   const users = await Promise.all(
     base.map(async (member) => {
-      const rolesPage = await client.organizations.members.roles.list(
+      const rolesPage = await managementClient.organizations.members.roles.list(
         orgId,
         member.user_id,
       );
@@ -83,8 +82,7 @@ export async function fetchTenantRoles(
 ): Promise<TenantRole[]> {
   if (userRole === "User") return [];
 
-  const client = createManagementClient();
-  const page = await client.roles.list();
+  const page = await managementClient.roles.list();
   return page.data
     .filter((r) => {
       if (!(r.id && r.name)) return false;
@@ -97,8 +95,7 @@ export async function fetchTenantRoles(
 export async function fetchOrgConnections(
   orgId: string,
 ): Promise<OrgConnection[]> {
-  const client = createManagementClient();
-  const page = await client.organizations.enabledConnections.list(orgId);
+  const page = await managementClient.organizations.enabledConnections.list(orgId);
   const dbConnections = page.data.filter(
     (c) => c.connection?.strategy === "auth0",
   );
@@ -107,7 +104,7 @@ export async function fetchOrgConnections(
       const connectionId = c.connection_id ?? "";
       let requires_username = false;
       if (connectionId) {
-        const details = await client.connections.get(connectionId);
+        const details = await managementClient.connections.get(connectionId);
         const options = details.options as
           | Record<string, Record<string, unknown>>
           | undefined;
@@ -126,9 +123,8 @@ export async function deleteOrgMember(
   orgId: string,
   userId: string,
 ): Promise<void> {
-  const client = createManagementClient();
-  await client.organizations.members.delete(orgId, { members: [userId] });
-  await client.users.delete(userId);
+  await managementClient.organizations.members.delete(orgId, { members: [userId] });
+  await managementClient.users.delete(userId);
 }
 
 export async function createOrgMember(params: {
@@ -140,8 +136,7 @@ export async function createOrgMember(params: {
   password: string;
   roleId: string;
 }): Promise<void> {
-  const client = createManagementClient();
-  const user = await client.users.create({
+  const user = await managementClient.users.create({
     connection: params.connectionName,
     name: params.name,
     ...(params.username
@@ -149,10 +144,10 @@ export async function createOrgMember(params: {
       : { email: params.email, email_verified: false }),
     password: params.password,
   });
-  await client.organizations.members.create(params.orgId, {
+  await managementClient.organizations.members.create(params.orgId, {
     members: [user.user_id ?? ""],
   });
-  await client.organizations.members.roles.assign(
+  await managementClient.organizations.members.roles.assign(
     params.orgId,
     user.user_id ?? "",
     { roles: [params.roleId] },
@@ -165,13 +160,12 @@ export async function setOrgMemberRole(
   newRoleId: string,
   prevRoleId?: string,
 ): Promise<void> {
-  const client = createManagementClient();
   if (prevRoleId) {
-    await client.organizations.members.roles.delete(orgId, userId, {
+    await managementClient.organizations.members.roles.delete(orgId, userId, {
       roles: [prevRoleId],
     });
   }
-  await client.organizations.members.roles.assign(orgId, userId, {
+  await managementClient.organizations.members.roles.assign(orgId, userId, {
     roles: [newRoleId],
   });
 }
