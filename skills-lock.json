@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "auth0-nextjs": {
+      "source": "auth0/agent-skills",
+      "sourceType": "github",
+      "computedHash": "56f6c2249069453ef46ebde5db565989065b9aa3e262664b7681ccf740ae5483"
+    },
+    "auth0-quickstart": {
+      "source": "auth0/agent-skills",
+      "sourceType": "github",
+      "computedHash": "ec826a7e83ba8df85d45aee06db4a1dbe7a887f8a68a40cf88b939ac0266d191"
+    }
+  }
+}
