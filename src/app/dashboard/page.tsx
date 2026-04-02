@@ -46,7 +46,7 @@ export default async function DashboardPage() {
     ? await Promise.all([
         fetchOrganization(orgId),
         canManageMembers
-          ? fetchOrganizationMembers(orgId)
+          ? fetchOrganizationMembers(orgId, currentUserRole)
           : Promise.resolve([] as OrgMember[]),
         fetchOrgConnections(orgId),
         canManageMembers

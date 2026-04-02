@@ -51,6 +51,7 @@ export async function fetchOrganization(orgId: string): Promise<Organization> {
 
 export async function fetchOrganizationMembers(
   orgId: string,
+  userRole: AppRole,
 ): Promise<OrgMember[]> {
   const client = createManagementClient();
   const page = await client.organizations.members.list(orgId, {
@@ -62,7 +63,7 @@ export async function fetchOrganizationMembers(
     email: m.email ?? "",
     picture: m.picture ?? "",
   }));
-  return Promise.all(
+  const users = await Promise.all(
     base.map(async (member) => {
       const rolesPage = await client.organizations.members.roles.list(
         orgId,
@@ -71,6 +72,10 @@ export async function fetchOrganizationMembers(
       return { ...member, role: rolesPage.data[0]?.name ?? undefined };
     }),
   );
+  if (userRole === "Manager") {
+    return users.filter((user) => user.role !== "Admin");
+  }
+  return users;
 }
 
 export async function fetchTenantRoles(
@@ -83,7 +88,7 @@ export async function fetchTenantRoles(
   return page.data
     .filter((r) => {
       if (!(r.id && r.name)) return false;
-      if (userRole === "Manager" && r.name !== "Admin") return false;
+      if (userRole === "Manager") return r.name !== "Admin";
       return true;
     })
     .map((r) => ({ id: r.id!, name: r.name! }));
