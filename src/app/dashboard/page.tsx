@@ -188,15 +188,19 @@ export default async function DashboardPage() {
                         {member.email}
                       </p>
                     </div>
-                    <RoleSelector
-                      member={member}
-                      tenantRoles={tenantRoles}
-                      changeRole={changeRole}
-                    />
-                    <DeleteMemberButton
-                      member={member}
-                      deleteMember={deleteMember}
-                    />
+                    {member.user_id !== session.user.sub && (
+                      <>
+                        <RoleSelector
+                          member={member}
+                          tenantRoles={tenantRoles}
+                          changeRole={changeRole}
+                        />
+                        <DeleteMemberButton
+                          member={member}
+                          deleteMember={deleteMember}
+                        />
+                      </>
+                    )}
                   </li>
                 ))}
               </ul>
