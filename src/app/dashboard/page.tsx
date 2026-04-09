@@ -8,6 +8,7 @@ import {
   createOrgMember,
   deleteOrgMember,
   setOrgMemberRole,
+  createPasswordResetTicket,
 } from "@/lib/management-api";
 import type {
   AppRole,
@@ -17,6 +18,7 @@ import type {
 } from "@/types/organization";
 import AddMemberModal from "./AddMemberModal";
 import DeleteMemberButton from "./DeleteMemberButton";
+import ResetPasswordButton from "./ResetPasswordButton";
 import RoleSelector from "./RoleSelector";
 import { getHighestUserRole } from "@/lib/utils";
 import { jwtDecode } from "jwt-decode";
@@ -98,6 +100,22 @@ export default async function DashboardPage() {
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to add member.";
+      return { error: message };
+    }
+  }
+
+  async function resetPassword(formData: FormData) {
+    "use server";
+    const userId = formData.get("userId") as string;
+    try {
+      const url = await createPasswordResetTicket(
+        userId,
+        `${process.env.APP_BASE_URL}/dashboard`,
+      );
+      return { url };
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create reset link.";
       return { error: message };
     }
   }
@@ -195,6 +213,10 @@ export default async function DashboardPage() {
                           member={member}
                           tenantRoles={tenantRoles}
                           changeRole={changeRole}
+                        />
+                        <ResetPasswordButton
+                          member={member}
+                          resetPassword={resetPassword}
                         />
                         <DeleteMemberButton
                           member={member}

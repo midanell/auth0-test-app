@@ -34,6 +34,8 @@ All writes (add member, delete member, change role) are implemented as Next.js S
 
 **Change role** removes the previous role then assigns the new one.
 
+**Reset password** (Admins and Managers only) generates a one-time Auth0 password-change ticket via the Management API. Clicking the lock icon next to a member produces a URL; copying it and sending it to the user out-of-band lets them set a new password without the app ever handling the credential. After they complete the flow, Auth0 redirects them back to `/dashboard`. The link is single-use and expires according to the tenant's ticket TTL setting.
+
 ---
 
 ## Running locally

@@ -154,6 +154,17 @@ export async function createOrgMember(params: {
   );
 }
 
+export async function createPasswordResetTicket(
+  userId: string,
+  resultUrl: string,
+): Promise<string> {
+  const ticket = await managementClient.tickets.changePassword({
+    user_id: userId,
+    result_url: resultUrl,
+  });
+  return ticket.ticket ?? "";
+}
+
 export async function setOrgMemberRole(
   orgId: string,
   userId: string,

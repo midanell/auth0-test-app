@@ -31,6 +31,7 @@ Create a separate application of type **Machine to Machine**, authorized against
 | `read:connections`                 | Checking connection details (username/email mode) |
 | `create:users`                     | Creating a new Auth0 user                         |
 | `delete:users`                     | Deleting a user when removed from the org         |
+| `create:user_tickets`              | Generating password reset links                   |
 
 Use its Client ID and Client Secret for `AUTH0_MANAGEMENT_CLIENT_ID` / `AUTH0_MANAGEMENT_CLIENT_SECRET`.
 

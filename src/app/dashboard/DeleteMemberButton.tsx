@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { MdDelete } from "react-icons/md";
 import type { OrgMember } from "@/types/organization";
 
 interface Props {
@@ -34,10 +35,10 @@ export default function DeleteMemberButton({ member, deleteMember }: Props) {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="flex items-center justify-center w-6 h-6 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors text-base leading-none shrink-0"
+        className="flex items-center justify-center w-6 h-6 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors shrink-0"
         aria-label={`Delete ${member.name}`}
       >
-        ×
+        <MdDelete size={16} />
       </button>
     );
   }
