@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Auth0 Next.js Multi-Organization App
 
-## Getting Started
+A Next.js 16 application that demonstrates Auth0 multi-organization authentication with role-based member management. Admins and Managers can invite, remove, and reassign roles for members of their organization directly from the app.
 
-First, run the development server:
+---
+
+## What the app does
+
+| Route | Behaviour |
+|---|---|
+| `/orgs` | Public page listing all Auth0 organizations. Clicking one starts the login flow scoped to that org. Authenticated users are redirected straight to `/dashboard`. |
+| `/auth/login`, `/auth/logout`, `/auth/callback` | Handled automatically by the `@auth0/nextjs-auth0` middleware — no route files exist for these. |
+| `/dashboard` | Post-login landing page. Shows the logged-in user's name and organization. Admins and Managers also see the full member list with controls to add, remove, and change roles. |
+
+### Role hierarchy
+
+Three roles exist in the tenant: **Admin**, **Manager**, and **User**.
+
+- **Admin** — sees all members and all roles; can assign any role including Admin.
+- **Manager** — sees all members *except* Admins; can assign Manager or User only.
+- **User** — no member management UI at all.
+
+A user can never modify or remove themselves, regardless of role.
+
+Roles are read from the **ID token** (not the access token) under a custom claim namespace equal to `AUTH0_AUDIENCE + "/roles"`. The app decodes the raw ID token with `jwtDecode` to extract them, since `session.user` does not expose custom claims directly.
+
+### Mutations
+
+All writes (add member, delete member, change role) are implemented as Next.js Server Actions defined inline in the dashboard Server Component. Client components (`AddMemberModal`, `DeleteMemberButton`, `RoleSelector`) receive these actions as props, call them, then call `router.refresh()` to re-fetch server state.
+
+**Add member** creates an Auth0 user, adds them to the org, and assigns their role — three sequential Management API calls.
+
+**Delete member** removes the user from the org *and* permanently deletes the Auth0 user account.
+
+**Change role** removes the previous role then assigns the new one.
+
+---
+
+## Running locally
 
 ```bash
+npm install
+# configure .env.local (see below)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000/orgs](http://localhost:3000/orgs) to pick an organization and log in.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables (`.env.local`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+# Regular Web Application
+AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_CLIENT_ID=...
+AUTH0_CLIENT_SECRET=...
+AUTH0_AUDIENCE=https://your-api-identifier
 
-## Learn More
+# Session encryption — generate with: openssl rand -hex 32
+AUTH0_SECRET=...
 
-To learn more about Next.js, take a look at the following resources:
+# No trailing slash
+APP_BASE_URL=http://localhost:3000
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Machine-to-Machine Application
+AUTH0_MANAGEMENT_CLIENT_ID=...
+AUTH0_MANAGEMENT_CLIENT_SECRET=...
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Auth0 dashboard configuration
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [AUTH0_SETUP.md](./AUTH0_SETUP.md) for the full step-by-step guide covering the Regular Web App, API, Machine-to-Machine app, roles, organizations, and the Login Action required to inject roles into the ID token.
