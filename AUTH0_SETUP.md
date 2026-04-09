@@ -29,6 +29,12 @@ Auth0 will only redirect users to URLs you have explicitly whitelisted. Go to th
 
 For production, add your production URLs to each field alongside the localhost entries (Auth0 accepts comma-separated lists).
 
+#### Login Experience
+
+Under **Applications → [your Regular Web Application] → Login Experience**, the **Login Flow** option controls how the login flow will be configured:
+
+- **No Prompt** (recommended for this app) — Auth0 uses the organization context silently, which is sent as search param to the login route. The user just sees a standard login form based on the organization configuration.
+
 #### Credentials
 
 After saving, copy the **Client ID** and **Client Secret** from the Settings tab into your `.env.local` as `AUTH0_CLIENT_ID` and `AUTH0_CLIENT_SECRET`. The Client Secret must be kept server-side only — never expose it to the browser.
@@ -121,8 +127,10 @@ If no database connection is enabled on the org, the Add Member button will not 
 
 Go to **Organizations** and click **Create Organization**. Each organization has two name fields:
 
-- **Name** — a lowercase, slug-style identifier (e.g. `acme-corp`). This is the value stored as `org_id` in the session and used in Management API calls. It cannot contain spaces.
+- **Name** — a lowercase, slug-style identifier (e.g. `acme-corp`). Used in Management API calls when referencing the org by name, but this is **not** the value stored as `org_id` in the session. It cannot contain spaces.
 - **Display Name** — a human-readable label (e.g. `Acme Corp`). This is what the app shows on the dashboard and the `/orgs` picker page.
+
+Auth0 also assigns each organization an opaque internal identifier of the form `org_XXXXXXXXXXXXXXXXX` (e.g. `org_9ybsU1dN2dKfDkBi`). This is the value stored as `org_id` in the session token and used when scoping a login to a specific organization. The human-readable Name slug can optionally appear as `org_name` in tokens, but only if explicitly enabled in tenant settings.
 
 After creating the organization:
 
@@ -131,14 +139,9 @@ After creating the organization:
 
 #### Login experience
 
-When a user clicks an organization on the `/orgs` page, the app redirects them to `/auth/login?organization=org_id`. The `organization` parameter tells Auth0 to scope the login session to that specific organization — the resulting tokens will contain an `org_id` claim, and only members of that organization can complete the login.
+When a user clicks an organization on the `/orgs` page, the app redirects them to `/auth/login?organization=<org_internal_id>`, where `<org_internal_id>` is Auth0's opaque identifier for that org (the `org_XXXXXXXXXXXXXXXXX`-formatted value, not the human-readable Name slug). The `organization` parameter tells Auth0 to scope the login session to that specific organization — the resulting tokens will contain an `org_id` claim set to this same internal identifier, and only members of that organization can complete the login.
 
 If a user who is not a member of the selected organization attempts to log in, Auth0 will return an error and deny access.
-
-Under **Applications → [your Regular Web Application]**, the **Login Flow** option controls what happens when a user reaches the Auth0 login page with an `organization` parameter:
-
-- **No Prompt** (recommended for this app) — Auth0 uses the organization context silently. The user just sees a standard login form.
-- **Pre-Login Prompt** — Auth0 shows an organization selection screen before the login form. Unnecessary here since the `/orgs` page already handles org selection.
 
 #### Branding
 

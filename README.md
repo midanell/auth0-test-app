@@ -26,18 +26,18 @@ A Next.js 16 application that demonstrates Auth0 multi-organization authenticati
 
 ## What the app does
 
-| Route | Behaviour |
-|---|---|
-| `/orgs` | Public page listing all Auth0 organizations. Clicking one starts the login flow scoped to that org. Authenticated users are redirected straight to `/dashboard`. |
-| `/auth/login`, `/auth/logout`, `/auth/callback` | Handled automatically by the `@auth0/nextjs-auth0` middleware — no route files exist for these. |
-| `/dashboard` | Post-login landing page. Shows the logged-in user's name and organization. Admins and Managers also see the full member list with controls to add, remove, and change roles. |
+| Route                                           | Behaviour                                                                                                                                                                    |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/orgs`                                         | Public page listing all Auth0 organizations. Clicking one starts the login flow scoped to that org. Authenticated users are redirected straight to `/dashboard`.             |
+| `/auth/login`, `/auth/logout`, `/auth/callback` | Handled automatically by the `@auth0/nextjs-auth0` middleware — no route files exist for these.                                                                              |
+| `/dashboard`                                    | Post-login landing page. Shows the logged-in user's name and organization. Admins and Managers also see the full member list with controls to add, remove, and change roles. |
 
 ### Role hierarchy
 
 Three roles exist in the tenant: **Admin**, **Manager**, and **User**.
 
 - **Admin** — sees all members and all roles; can assign any role including Admin.
-- **Manager** — sees all members *except* Admins; can assign Manager or User only.
+- **Manager** — sees all members _except_ Admins; can assign Manager or User only.
 - **User** — no member management UI at all.
 
 A user can never modify or remove themselves, regardless of role.
@@ -50,7 +50,7 @@ All writes (add member, delete member, change role) are implemented as Next.js S
 
 **Add member** creates an Auth0 user, adds them to the org, and assigns their role — three sequential Management API calls.
 
-**Delete member** removes the user from the org *and* permanently deletes the Auth0 user account.
+**Delete member** removes the user from the org _and_ permanently deletes the Auth0 user account.
 
 **Change role** removes the previous role then assigns the new one.
 
@@ -101,19 +101,19 @@ The Auth0 Management API enforces a global rate limit shared across the entire t
 
 **N+1 connection fetches** — `fetchOrgConnections` follows a similar pattern: one call to list enabled connections, then one `connections.get` call per connection to read its details.
 
-On Auth0's free and developer tiers the global limit is low enough that even a handful of concurrent page loads can produce `429 Too Many Requests` errors.
+On Auth0's free tier the global limit is low enough that even a handful of concurrent page loads can produce `429 Too Many Requests` errors.
 
 ### How caching addresses it
 
 All Management API read functions in `src/lib/management-api.ts` use Next.js 16's `"use cache"` directive, which requires `cacheComponents: true` in `next.config.ts`. This caches each function's return value independently at the framework level, persisting across requests and (when deployed to a long-running server) across multiple users.
 
-| Cached function | Cache tag | Profile |
-|---|---|---|
-| `fetchOrganizations` | `orgs` | `minutes` |
-| `fetchOrganization(orgId)` | `org:{orgId}` | `hours` |
-| `fetchAllOrgMembers(orgId)` | `org-members:{orgId}` | `minutes` |
-| `fetchAllTenantRoles` | `tenant-roles` | `hours` |
-| `fetchOrgConnections(orgId)` | `org-connections:{orgId}` | `hours` |
+| Cached function              | Cache tag                 | Profile   |
+| ---------------------------- | ------------------------- | --------- |
+| `fetchOrganizations`         | `orgs`                    | `minutes` |
+| `fetchOrganization(orgId)`   | `org:{orgId}`             | `hours`   |
+| `fetchAllOrgMembers(orgId)`  | `org-members:{orgId}`     | `minutes` |
+| `fetchAllTenantRoles`        | `tenant-roles`            | `hours`   |
+| `fetchOrgConnections(orgId)` | `org-connections:{orgId}` | `hours`   |
 
 The `minutes` profile (1-minute background revalidate, 1-hour expiry) is used for member data since it changes most frequently. Slower-changing data like org details, roles, and connection configuration uses `hours` (1-hour background revalidate, 1-day expiry).
 
@@ -123,10 +123,10 @@ The `minutes` profile (1-minute background revalidate, 1-hour expiry) is used fo
 
 Because the cache persists across requests, mutations must explicitly invalidate affected entries so the next page load reflects the change immediately rather than waiting for TTL expiry. Each write function calls `revalidateTag` with `"max"` after completing its API calls:
 
-| Mutation | Invalidates |
-|---|---|
-| `createOrgMember` | `org-members:{orgId}` |
-| `deleteOrgMember` | `org-members:{orgId}` |
+| Mutation           | Invalidates           |
+| ------------------ | --------------------- |
+| `createOrgMember`  | `org-members:{orgId}` |
+| `deleteOrgMember`  | `org-members:{orgId}` |
 | `setOrgMemberRole` | `org-members:{orgId}` |
 
 `revalidateTag(..., "max")` marks the entry as stale rather than immediately evicting it, so the next visitor is served the stale response while fresh data is fetched in the background (stale-while-revalidate). The client components call `router.refresh()` after mutations, which causes the dashboard to re-render with the freshly invalidated data.
