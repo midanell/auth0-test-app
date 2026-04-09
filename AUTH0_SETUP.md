@@ -2,13 +2,36 @@
 
 ### 1. Regular Web Application
 
-Create an application of type **Regular Web Application**.
+#### What a Regular Web Application is
+
+A **Regular Web Application** in Auth0 represents a traditional server-rendered app where the backend exchanges credentials with Auth0 directly, rather than the browser doing so. It uses the **Authorization Code flow**: when a user logs in, Auth0 redirects them back to your server with a short-lived code, and your server exchanges that code for tokens using its Client Secret. The secret never leaves the server, which is what makes this flow secure.
+
+This is the correct application type for a Next.js app. It is distinct from a **Single Page Application** (SPA), which runs entirely in the browser and cannot safely hold a secret, and from a **Machine-to-Machine** app, which has no user involved at all.
+
+The `@auth0/nextjs-auth0` SDK handles the Authorization Code flow automatically — the callback exchange, session creation, and token storage are all managed for you by the middleware configured in `src/proxy.ts`.
+
+#### Creating the application
+
+1. Go to **Applications → Applications** and click **Create Application**.
+2. Choose **Regular Web Applications** as the type and give it a name.
+3. Click **Create**.
+
+#### Configuring allowed URLs
+
+Auth0 will only redirect users to URLs you have explicitly whitelisted. Go to the application's **Settings** tab and fill in:
 
 - **Allowed Callback URLs:** `http://localhost:3000/auth/callback`
+  The URL Auth0 redirects to after a successful login. Must match the `/auth/callback` route handled by the SDK middleware.
 - **Allowed Logout URLs:** `http://localhost:3000`
+  The URL Auth0 redirects to after logout. Auth0 will refuse to redirect anywhere that isn't listed here.
 - **Allowed Web Origins:** `http://localhost:3000`
+  Required for the SDK to silently check session state from the browser.
 
-Use its Client ID and Client Secret for `AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET`.
+For production, add your production URLs to each field alongside the localhost entries (Auth0 accepts comma-separated lists).
+
+#### Credentials
+
+After saving, copy the **Client ID** and **Client Secret** from the Settings tab into your `.env.local` as `AUTH0_CLIENT_ID` and `AUTH0_CLIENT_SECRET`. The Client Secret must be kept server-side only — never expose it to the browser.
 
 ### 2. API
 
@@ -20,9 +43,28 @@ Create an API and set its **identifier** to the value you want to use as `AUTH0_
 
 > **Note:** If you only need org roles injected into the ID token and have no other use for a scoped access token, you can skip this step and leave `AUTH0_AUDIENCE` unset. The Login Action and role-based access control will still work without it.
 
-### 3. Machine-to-Machine Application
+### 3. Machine-to-Machine Application and the Management API
 
-Create a separate application of type **Machine to Machine**, authorized against the **Auth0 Management API**, with the following scopes:
+#### What the Management API is
+
+The **Auth0 Management API** is Auth0's own REST API for administering a tenant programmatically — creating users, managing organizations, assigning roles, and so on. It is separate from any API you register yourself (step 2). It lives at `https://YOUR_DOMAIN/api/v2/` and is always present on every Auth0 tenant.
+
+Access to the Management API is controlled by OAuth scopes. A caller must present a valid access token with the specific scopes required for each operation. This means you cannot call it directly from a browser or from user-issued tokens — you need a server-side client with its own credentials.
+
+#### What a Machine-to-Machine application is
+
+A **Machine-to-Machine (M2M) application** in Auth0 represents a server-side client that calls an API directly, without a user being involved. It authenticates using the **Client Credentials flow**: it sends its Client ID and Client Secret to Auth0 and receives a short-lived access token in return. That token is then attached to Management API requests.
+
+This is distinct from the Regular Web Application (step 1), which acts on behalf of a logged-in user. The M2M app acts on behalf of itself — it is the server calling Auth0 to manage your tenant's data.
+
+#### Creating and authorizing the application
+
+1. Go to **Applications → Applications** and click **Create Application**.
+2. Choose **Machine to Machine Applications** as the type.
+3. On the next screen you are prompted to select an API to authorize against — choose **Auth0 Management API**.
+4. A scope selector appears. Enable the scopes listed in the table below, then click **Authorize**.
+
+> You can revisit the authorized scopes at any time via **Applications → [your M2M app] → APIs → Auth0 Management API**.
 
 | Scope                              | Used for                                          |
 | ---------------------------------- | ------------------------------------------------- |
@@ -39,9 +81,11 @@ Create a separate application of type **Machine to Machine**, authorized against
 | `delete:users`                     | Deleting a user when removed from the org         |
 | `create:user_tickets`              | Generating password reset links                   |
 
-Use its Client ID and Client Secret for `AUTH0_MANAGEMENT_CLIENT_ID` / `AUTH0_MANAGEMENT_CLIENT_SECRET`.
+Use the M2M application's **Client ID** and **Client Secret** for `AUTH0_MANAGEMENT_CLIENT_ID` / `AUTH0_MANAGEMENT_CLIENT_SECRET`.
 
-The Management Client is instantiated once as a module-level singleton so the M2M token is cached and reused across requests rather than fetched on every call.
+#### How the token is managed in this app
+
+When the app starts, the `auth0` SDK's `ManagementClient` is instantiated once as a module-level singleton using the M2M credentials. The SDK handles fetching and refreshing the M2M access token automatically — tokens are short-lived (typically 24 hours) and the SDK will re-authenticate transparently when one expires. Keeping the client as a singleton avoids fetching a new token on every request.
 
 ### 4. Roles
 
@@ -53,14 +97,32 @@ Create three roles in **User Management → Roles**:
 
 The names must match exactly — the app compares role names as strings.
 
-### 5. Organizations
+### 5. Database Connection
+
+A **Database Connection** in Auth0 stores usernames, emails, and hashed passwords directly in Auth0's managed database. It is the connection type this app uses when creating new members via the Add Member form (the app only supports the `auth0` strategy — social or enterprise connections are not supported for member creation).
+
+#### Create the connection
+
+Go to **Authentication → Database** and click **Create DB Connection**. Give it a name (e.g. `Username-Password-Authentication` is the default, but you can create additional ones). Under the connection settings you can optionally enable **Requires Username** — if enabled, the Add Member form will prompt for a username instead of an email address.
+
+#### Allow an application to use it
+
+A connection must be explicitly enabled for each application that should use it. Go to the connection's **Applications** tab and toggle on your **Regular Web Application** (the one from step 1). Without this, login attempts through that application will fail even if the connection exists.
+
+#### Enable it on an organization
+
+Connections must also be enabled per organization. Go to **Organizations → [your org] → Connections** and click **Enable Connection**, then select the database connection you created. This is required for the Add Member flow — `fetchOrgConnections` in the app only returns connections that are both enabled on the org and use the `auth0` strategy.
+
+If no database connection is enabled on the org, the Add Member button will not appear and a warning will be shown on the dashboard instead.
+
+### 6. Organizations
 
 Enable the **Organizations** feature on your tenant. Create at least one organization and:
 
-- Enable a **Database connection** on the organization (required for the Add Member flow — the app only supports `auth0` strategy connections).
+- Enable a database connection on the organization (see step 5).
 - Add members and assign them one of the three roles above.
 
-### 6. Login Action — inject roles into the ID token
+### 7. Login Action — inject roles into the ID token
 
 The app reads organization roles from a custom claim on the ID token. Add a **Login / Post Login** Action with the following code:
 
