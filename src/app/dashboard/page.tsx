@@ -23,8 +23,6 @@ import RoleSelector from "./RoleSelector";
 import { getHighestUserRole } from "@/lib/utils";
 import { jwtDecode } from "jwt-decode";
 
-export const dynamic = "force-dynamic";
-
 export default async function DashboardPage() {
   const session = await auth0.getSession();
 

@@ -2,8 +2,6 @@ import { auth0 } from "@/lib/auth0";
 import { fetchOrganizations } from "@/lib/management-api";
 import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
 export default async function OrgsPage() {
   const session = await auth0.getSession();
 

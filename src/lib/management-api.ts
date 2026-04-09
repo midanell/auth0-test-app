@@ -1,4 +1,5 @@
 import { ManagementClient } from "auth0";
+import { cacheLife, cacheTag, revalidateTag } from "next/cache";
 import type {
   Organization,
   OrgMember,
@@ -31,7 +32,13 @@ function createManagementClient(): ManagementClient {
 
 const managementClient: ManagementClient = createManagementClient();
 
+// --- Read ---
+
 export async function fetchOrganizations(): Promise<Organization[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag("orgs");
+
   const page = await managementClient.organizations.list({ take: PAGE_SIZE });
   return page.data.map((org) => ({
     id: org.id ?? "",
@@ -41,6 +48,10 @@ export async function fetchOrganizations(): Promise<Organization[]> {
 }
 
 export async function fetchOrganization(orgId: string): Promise<Organization> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(`org:${orgId}`);
+
   const org = await managementClient.organizations.get(orgId);
   return {
     id: org.id ?? "",
@@ -49,10 +60,11 @@ export async function fetchOrganization(orgId: string): Promise<Organization> {
   };
 }
 
-export async function fetchOrganizationMembers(
-  orgId: string,
-  userRole: AppRole,
-): Promise<OrgMember[]> {
+async function fetchAllOrgMembers(orgId: string): Promise<OrgMember[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(`org-members:${orgId}`);
+
   const page = await managementClient.organizations.members.list(orgId, {
     take: PAGE_SIZE,
   });
@@ -62,7 +74,7 @@ export async function fetchOrganizationMembers(
     email: m.email ?? "",
     picture: m.picture ?? "",
   }));
-  const users = await Promise.all(
+  return Promise.all(
     base.map(async (member) => {
       const rolesPage = await managementClient.organizations.members.roles.list(
         orgId,
@@ -71,31 +83,48 @@ export async function fetchOrganizationMembers(
       return { ...member, role: rolesPage.data[0]?.name ?? undefined };
     }),
   );
-  if (userRole === "Manager") {
-    return users.filter((user) => user.role !== "Admin");
-  }
-  return users;
+}
+
+export async function fetchOrganizationMembers(
+  orgId: string,
+  userRole: AppRole,
+): Promise<OrgMember[]> {
+  const all = await fetchAllOrgMembers(orgId);
+  if (userRole === "Manager") return all.filter((u) => u.role !== "Admin");
+  return all;
+}
+
+async function fetchAllTenantRoles(): Promise<TenantRole[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag("tenant-roles");
+
+  const page = await managementClient.roles.list();
+  return page.data
+    .filter((r): r is typeof r & { id: string; name: string } =>
+      Boolean(r.id && r.name),
+    )
+    .map((r) => ({ id: r.id, name: r.name }));
 }
 
 export async function fetchTenantRoles(
   userRole: AppRole,
 ): Promise<TenantRole[]> {
   if (userRole === "User") return [];
-
-  const page = await managementClient.roles.list();
-  return page.data
-    .filter((r) => {
-      if (!(r.id && r.name)) return false;
-      if (userRole === "Manager") return r.name !== "Admin";
-      return true;
-    })
-    .map((r) => ({ id: r.id!, name: r.name! }));
+  const all = await fetchAllTenantRoles();
+  if (userRole === "Manager") return all.filter((r) => r.name !== "Admin");
+  return all;
 }
 
 export async function fetchOrgConnections(
   orgId: string,
 ): Promise<OrgConnection[]> {
-  const page = await managementClient.organizations.enabledConnections.list(orgId);
+  "use cache";
+  cacheLife("hours");
+  cacheTag(`org-connections:${orgId}`);
+
+  const page =
+    await managementClient.organizations.enabledConnections.list(orgId);
   const dbConnections = page.data.filter(
     (c) => c.connection?.strategy === "auth0",
   );
@@ -119,12 +148,17 @@ export async function fetchOrgConnections(
   );
 }
 
+// --- Write ---
+
 export async function deleteOrgMember(
   orgId: string,
   userId: string,
 ): Promise<void> {
-  await managementClient.organizations.members.delete(orgId, { members: [userId] });
+  await managementClient.organizations.members.delete(orgId, {
+    members: [userId],
+  });
   await managementClient.users.delete(userId);
+  revalidateTag(`org-members:${orgId}`, "max");
 }
 
 export async function createOrgMember(params: {
@@ -152,6 +186,7 @@ export async function createOrgMember(params: {
     user.user_id ?? "",
     { roles: [params.roleId] },
   );
+  revalidateTag(`org-members:${params.orgId}`, "max");
 }
 
 export async function createPasswordResetTicket(
@@ -179,4 +214,5 @@ export async function setOrgMemberRole(
   await managementClient.organizations.members.roles.assign(orgId, userId, {
     roles: [newRoleId],
   });
+  revalidateTag(`org-members:${orgId}`, "max");
 }
