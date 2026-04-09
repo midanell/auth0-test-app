@@ -12,7 +12,13 @@ Use its Client ID and Client Secret for `AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET
 
 ### 2. API
 
-Create an API with the identifier you want to use as `AUTH0_AUDIENCE` (e.g. `https://your-api-identifier`). The value is used both as the OAuth audience and as the prefix for the custom roles claim namespace.
+In Auth0, an **API** (also called a Resource Server) represents a backend service that your application wants to call on behalf of a user. Registering one tells Auth0 to issue access tokens scoped to that service, and it gives those tokens a verifiable audience (`aud` claim) so your backend can reject tokens intended for someone else.
+
+For this app the API registration serves one purpose: setting the `AUTH0_AUDIENCE` value, which is passed as the `audience` parameter during login so that Auth0 issues a JWT access token rather than an opaque token. Without it, Auth0 issues an opaque token that cannot be decoded on the client.
+
+Create an API and set its **identifier** to the value you want to use as `AUTH0_AUDIENCE` (e.g. `https://your-api-identifier`). The identifier is just a unique string — it does not need to be a reachable URL, though a URL is the convention.
+
+> **Note:** If you only need org roles injected into the ID token and have no other use for a scoped access token, you can skip this step and leave `AUTH0_AUDIENCE` unset. The Login Action and role-based access control will still work without it.
 
 ### 3. Machine-to-Machine Application
 
@@ -60,14 +66,15 @@ The app reads organization roles from a custom claim on the ID token. Add a **Lo
 
 ```js
 exports.onExecutePostLogin = async (event, api) => {
-  const namespace = "https://your-app.com";
+  const namespace = "https://your-roles-namespace"; // must match AUTH0_ROLES_NAMESPACE in .env.local
 
   if (event.authorization) {
     const orgRoles = event.authorization.roles ?? [];
     api.idToken.setCustomClaim(`${namespace}/roles`, orgRoles);
-    api.accessToken.setCustomClaim(`${namespace}/roles`, orgRoles);
   }
 };
 ```
+
+The value of `namespace` must exactly match the `AUTH0_ROLES_NAMESPACE` environment variable in your app. It is independent of `AUTH0_AUDIENCE` — you can set it to any URL-shaped string (e.g. `https://your-app.com`). However, you can also use the same namespace if you want.
 
 Deploy the action and add it to the **Login** flow. Without this, the dashboard will treat every user as `User` regardless of their assigned role.
