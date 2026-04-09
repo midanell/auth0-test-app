@@ -117,10 +117,38 @@ If no database connection is enabled on the org, the Add Member button will not 
 
 ### 6. Organizations
 
-Enable the **Organizations** feature on your tenant. Create at least one organization and:
+#### Creating an organization
+
+Go to **Organizations** and click **Create Organization**. Each organization has two name fields:
+
+- **Name** — a lowercase, slug-style identifier (e.g. `acme-corp`). This is the value stored as `org_id` in the session and used in Management API calls. It cannot contain spaces.
+- **Display Name** — a human-readable label (e.g. `Acme Corp`). This is what the app shows on the dashboard and the `/orgs` picker page.
+
+After creating the organization:
 
 - Enable a database connection on the organization (see step 5).
 - Add members and assign them one of the three roles above.
+
+#### Login experience
+
+When a user clicks an organization on the `/orgs` page, the app redirects them to `/auth/login?organization=org_id`. The `organization` parameter tells Auth0 to scope the login session to that specific organization — the resulting tokens will contain an `org_id` claim, and only members of that organization can complete the login.
+
+If a user who is not a member of the selected organization attempts to log in, Auth0 will return an error and deny access.
+
+Under **Applications → [your Regular Web Application]**, the **Login Flow** option controls what happens when a user reaches the Auth0 login page with an `organization` parameter:
+
+- **No Prompt** (recommended for this app) — Auth0 uses the organization context silently. The user just sees a standard login form.
+- **Pre-Login Prompt** — Auth0 shows an organization selection screen before the login form. Unnecessary here since the `/orgs` page already handles org selection.
+
+#### Branding
+
+Each organization can have its own visual identity applied to the Auth0 Universal Login page, overriding the tenant-level theme for members of that org. Go to **Organizations → [your org] → Branding** to configure:
+
+- **Logo URL** — displayed at the top of the login form. Must be a publicly accessible image URL.
+- **Primary Color** — used for the login button and interactive elements.
+- **Background Color** — the page background behind the login card.
+
+Org-level branding only applies when the login is scoped to that organization (i.e. when the `organization` parameter is present in the login URL). Logins without an org context use the tenant-level Universal Login theme configured under **Branding → Universal Login**.
 
 ### 7. Login Action — inject roles into the ID token
 

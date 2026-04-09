@@ -4,6 +4,26 @@ A Next.js 16 application that demonstrates Auth0 multi-organization authenticati
 
 ---
 
+## Quickstart
+
+### In the Auth0 dashboard
+
+1. **Create a Regular Web Application** — this represents the Next.js app. See [AUTH0_SETUP.md §1](./AUTH0_SETUP.md#1-regular-web-application).
+2. **Register an API** — optional, but required if you want a scoped JWT access token. See [AUTH0_SETUP.md §2](./AUTH0_SETUP.md#2-api).
+3. **Create a Machine-to-Machine application** and authorize it against the Auth0 Management API with the required scopes. See [AUTH0_SETUP.md §3](./AUTH0_SETUP.md#3-machine-to-machine-application-and-the-management-api).
+4. **Create the three roles** — `Admin`, `Manager`, and `User`. See [AUTH0_SETUP.md §4](./AUTH0_SETUP.md#4-roles).
+5. **Create a Database Connection** and enable it for both your Regular Web Application and your organization. See [AUTH0_SETUP.md §5](./AUTH0_SETUP.md#5-database-connection).
+6. **Enable Organizations** and create at least one organization with members assigned to roles. See [AUTH0_SETUP.md §6](./AUTH0_SETUP.md#6-organizations).
+7. **Add a Login Action** to inject org roles into the ID token. See [AUTH0_SETUP.md §7](./AUTH0_SETUP.md#7-login-action--inject-roles-into-the-id-token).
+
+### Running the app
+
+1. `npm install`
+2. Copy your credentials into `.env.local` — see [Environment variables](#environment-variables-envlocal) below.
+3. `npm run dev` and open [http://localhost:3000/orgs](http://localhost:3000/orgs).
+
+---
+
 ## What the app does
 
 | Route | Behaviour |
